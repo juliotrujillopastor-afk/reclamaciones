@@ -1,0 +1,1184 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Portal de Reclamaciones STEM - Zero Secrets Architecture</title>
+    
+    <link rel="icon" href="data:,">
+
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- FontAwesome Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- CryptoJS para HASH SHA-256 y Cifrado AES-256 -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/crypto-js/4.1.1/crypto-js.min.js"></script>
+    <!-- Google Fonts Inter -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    fontFamily: {
+                        sans: ['Inter', 'sans-serif'],
+                    },
+                    colors: {
+                        navy: {
+                            800: '#1e3a8a',
+                            900: '#0f172a',
+                        },
+                        amberGold: '#d97706',
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        body { font-family: 'Inter', sans-serif; background-color: #f8fafc; }
+        .custom-scrollbar::-webkit-scrollbar { width: 6px; }
+        .custom-scrollbar::-webkit-scrollbar-track { background: #f1f5f9; }
+        .custom-scrollbar::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 4px; }
+    </style>
+</head>
+<body class="min-h-screen text-slate-800 flex flex-col justify-between">
+
+    <!-- HEADER / BARRA DE NAVEGACIÓN -->
+    <header class="bg-navy-800 text-white shadow-lg sticky top-0 z-40">
+        <div class="max-w-6xl mx-auto px-4 sm:px-6 py-4 flex flex-col sm:flex-row justify-between items-center gap-4">
+            <div class="flex items-center space-x-3">
+                <div class="bg-blue-600 text-white p-2.5 rounded-xl shadow-md">
+                    <i class="fa-solid fa-shield-halved text-xl"></i>
+                </div>
+                <div>
+                    <h1 class="text-xl font-bold tracking-tight">Portal de Reclamaciones STEM</h1>
+                    <p class="text-xs text-blue-200">Arquitectura "Zero-Hardcoded Secrets" | Cifrado AES-256 & SHA-256</p>
+                </div>
+            </div>
+
+            <!-- PESTAÑAS DE NAVEGACIÓN -->
+            <div class="flex bg-blue-950/60 p-1.5 rounded-xl border border-blue-700/50">
+                <button id="tabAlumnoBtn" onclick="switchTab('alumno')" 
+                    class="px-5 py-2 text-sm font-semibold rounded-lg transition-all flex items-center gap-2 bg-blue-600 text-white shadow-md">
+                    <i class="fa-solid fa-user-graduate"></i>
+                    <span>Panel Alumnos</span>
+                </button>
+                <button id="tabProfesorBtn" onclick="switchTab('profesor')" 
+                    class="px-5 py-2 text-sm font-semibold rounded-lg transition-all flex items-center gap-2 text-blue-200 hover:text-white">
+                    <i class="fa-solid fa-user-shield"></i>
+                    <span>Panel Profesor</span>
+                </button>
+            </div>
+        </div>
+    </header>
+
+    <!-- NOTIFICACIONES TOAST CONTAINER -->
+    <div id="toastContainer" class="fixed bottom-5 right-5 z-50 flex flex-col gap-2 max-w-sm w-full px-4"></div>
+
+    <!-- CONTENEDOR PRINCIPAL -->
+    <main class="max-w-6xl mx-auto px-4 sm:px-6 py-8 flex-grow w-full">
+
+        <!-- ========================================== -->
+        <!-- VISTA DE ALUMNO (FORMULARIO DE RECLAMACIÓN) -->
+        <!-- ========================================== -->
+        <section id="viewAlumno" class="space-y-6">
+            <!-- Banner informativo -->
+            <div class="bg-blue-50 border-l-4 border-blue-600 p-4 rounded-r-xl shadow-sm flex items-start gap-3">
+                <i class="fa-solid fa-lock text-blue-600 text-lg mt-0.5"></i>
+                <div class="text-sm text-blue-900 leading-relaxed">
+                    <strong>Envío de Reclamación Protegida (AES-256):</strong>
+                    <p class="mt-1 text-blue-800">Selecciona el examen, introduce el nombre del archivo de tu informe corregido (ejemplo: <code class="bg-blue-100 px-1.5 py-0.5 rounded text-blue-900 font-mono font-bold">examen_alumno_1.pdf</code>), escribe la clave del examen facilitada por tu profesor y detalla las preguntas a revisar.</p>
+                </div>
+            </div>
+
+            <!-- Formulario Principal de Reclamación -->
+            <div class="bg-white rounded-2xl shadow-sm border border-slate-200 p-6 md:p-8">
+                <form id="claimForm" onsubmit="submitClaim(event)" class="space-y-6">
+                    
+                    <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+                        <!-- Selector de Examen / Tema -->
+                        <div>
+                            <label for="selectExamenTema" class="block text-sm font-bold text-slate-700 mb-2">
+                                <i class="fa-solid fa-book-bookmark text-blue-600 mr-1.5"></i> Examen / Tema:
+                            </label>
+                            <select id="selectExamenTema" required
+                                class="w-full px-4 py-3 rounded-xl border border-slate-300 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all text-sm font-semibold bg-slate-50 focus:bg-white">
+                                <!-- Se rellena dinámicamente -->
+                            </select>
+                            <p class="text-xs text-slate-500 mt-1">Elige el tema correspondiente.</p>
+                        </div>
+
+                        <!-- ID / Nombre de archivo del Examen -->
+                        <div>
+                            <label for="idArchivoExamenInput" class="block text-sm font-bold text-slate-700 mb-2">
+                                <i class="fa-solid fa-file-pdf text-red-500 mr-1.5"></i> Archivo del Examen / ID Informe:
+                            </label>
+                            <input type="text" id="idArchivoExamenInput" required
+                                placeholder="Ej: examen_alumno_1.pdf"
+                                class="w-full px-4 py-3 rounded-xl border border-slate-300 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all font-mono text-sm bg-slate-50 focus:bg-white">
+                            <p class="text-xs text-slate-500 mt-1">Debe coincidir exactamente con el archivo asignado.</p>
+                        </div>
+
+                        <!-- Clave de Cifrado del Examen -->
+                        <div>
+                            <label for="claveAccesoExamenInput" class="block text-sm font-bold text-slate-700 mb-2">
+                                <i class="fa-solid fa-key text-amberGold mr-1.5"></i> Clave del Examen:
+                            </label>
+                            <input type="password" id="claveAccesoExamenInput" required
+                                placeholder="Contraseña facilitada por el profesor..."
+                                class="w-full px-4 py-3 rounded-xl border border-slate-300 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all text-sm bg-slate-50 focus:bg-white">
+                            <p class="text-xs text-slate-500 mt-1">Contraseña única para encriptar este envío.</p>
+                        </div>
+                    </div>
+
+                    <hr class="border-slate-100 my-6">
+
+                    <!-- SECCIÓN DINÁMICA DE PREGUNTAS -->
+                    <div>
+                        <div class="flex justify-between items-center mb-4">
+                            <h3 class="text-base font-bold text-slate-800 flex items-center gap-2">
+                                <i class="fa-solid fa-list-check text-amberGold"></i>
+                                <span>Preguntas a Revisar / Reclamar</span>
+                            </h3>
+                            <button type="button" onclick="addQuestionRow()" 
+                                class="text-xs font-semibold text-blue-600 hover:text-blue-800 bg-blue-50 hover:bg-blue-100 px-3 py-2 rounded-lg transition-all flex items-center gap-1.5 border border-blue-200">
+                                <i class="fa-solid fa-plus"></i>
+                                <span>Añadir otra pregunta</span>
+                            </button>
+                        </div>
+
+                        <!-- Contenedor de Preguntas Dynamic Rows -->
+                        <div id="questionsContainer" class="space-y-4">
+                            <!-- La fila por defecto se inserta con JS -->
+                        </div>
+                    </div>
+
+                    <!-- Botón de Envío -->
+                    <div class="pt-4">
+                        <button type="submit" id="btnSubmitClaim"
+                            class="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-4 px-6 rounded-xl shadow-lg shadow-blue-500/20 transition-all flex justify-center items-center gap-2 text-base">
+                            <i class="fa-solid fa-lock-combined"></i>
+                            <span>🔒 Enviar Reclamación Encriptada (AES-256)</span>
+                        </button>
+                    </div>
+
+                </form>
+            </div>
+        </section>
+
+        <!-- ========================================== -->
+        <!-- VISTA DE PROFESOR (ACCESO & GESTIÓN) -->
+        <!-- ========================================== -->
+        <section id="viewProfesor" class="space-y-6 hidden">
+            
+            <!-- TARJETA 1: CONFIGURACIÓN INICIAL DEL PROFESOR (SOLO APARECE EN PRIMER ACCESO) -->
+            <div id="profesorSetupCard" class="bg-white rounded-2xl shadow-xl border border-blue-200 p-8 max-w-lg mx-auto text-center space-y-6 hidden">
+                <div class="bg-blue-100 text-blue-700 w-20 h-20 rounded-full flex items-center justify-center mx-auto text-3xl shadow-inner">
+                    <i class="fa-solid fa-user-gear"></i>
+                </div>
+                <div>
+                    <span class="inline-block bg-blue-100 text-blue-800 text-[11px] font-bold px-3 py-1 rounded-full uppercase tracking-wider mb-2">Primer Acceso Detectado</span>
+                    <h2 class="text-2xl font-black text-slate-800">Configuración Inicial de Seguridad</h2>
+                    <p class="text-xs text-slate-500 mt-2 leading-relaxed">No existe ninguna contraseña fijada en el código. Crea ahora tu Contraseña Maestra para proteger el Panel del Profesor. Se guardará procesada mediante un HASH SHA-256 con salt en tu navegador.</p>
+                </div>
+
+                <form onsubmit="saveInitialPanelPassword(event)" class="space-y-4 text-left">
+                    <div>
+                        <label class="block text-xs font-bold text-slate-700 mb-1">Crea tu Contraseña Maestra del Panel:</label>
+                        <input type="password" id="setupNewPassword" required minlength="6" placeholder="Mínimo 6 caracteres..."
+                            class="w-full px-4 py-3 rounded-xl border border-slate-300 focus:ring-2 focus:ring-blue-500 text-sm font-semibold">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-bold text-slate-700 mb-1">Confirma la Contraseña Maestra:</label>
+                        <input type="password" id="setupConfirmPassword" required minlength="6" placeholder="Repite la contraseña..."
+                            class="w-full px-4 py-3 rounded-xl border border-slate-300 focus:ring-2 focus:ring-blue-500 text-sm font-semibold">
+                    </div>
+                    <button type="submit" 
+                        class="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-3.5 px-6 rounded-xl transition-all shadow-md flex justify-center items-center gap-2">
+                        <i class="fa-solid fa-floppy-disk"></i>
+                        <span>Guardar HASH SHA-256 y Desbloquear Panel</span>
+                    </button>
+                </form>
+            </div>
+
+            <!-- TARJETA 2: LOGIN NORMAL AL PANEL (CUANDO YA EXISTE UN HASH CONFIGURADO) -->
+            <div id="profesorLoginCard" class="bg-white rounded-2xl shadow-sm border border-slate-200 p-8 max-w-md mx-auto text-center space-y-5 hidden">
+                <div class="bg-amber-100 text-amber-700 w-16 h-16 rounded-full flex items-center justify-center mx-auto text-2xl">
+                    <i class="fa-solid fa-user-shield"></i>
+                </div>
+                <div>
+                    <h2 class="text-xl font-bold text-slate-800">Acceso al Panel de Profesor</h2>
+                    <p class="text-xs text-slate-500 mt-1">Introduce tu Contraseña Maestra del Panel para validar el HASH SHA-256.</p>
+                </div>
+                <div>
+                    <input type="password" id="passProfesorPanelInput" placeholder="Introduce tu Contraseña Maestra..."
+                        onkeypress="if(event.key==='Enter') authProfesorPanel()"
+                        class="w-full px-4 py-3 text-center text-lg tracking-widest rounded-xl border border-slate-300 focus:ring-2 focus:ring-amber-500 focus:border-amber-500 font-bold">
+                </div>
+                <button onclick="authProfesorPanel()" 
+                    class="w-full bg-slate-900 hover:bg-slate-800 text-white font-bold py-3 px-6 rounded-xl transition-all shadow-md flex justify-center items-center gap-2">
+                    <i class="fa-solid fa-lock-open"></i>
+                    <span>Verificar HASH y Desbloquear</span>
+                </button>
+            </div>
+
+            <!-- DASHBOARD DEL PROFESOR (UNA VEZ AUTENTICADO) -->
+            <div id="profesorDashboard" class="space-y-6 hidden">
+                
+                <!-- CAPA 2: BARRA DE DESENCRIPTACIÓN DE EXÁMENES (AES-256) -->
+                <div class="bg-amber-50 border border-amber-200 rounded-2xl p-5 shadow-sm flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+                    <div class="flex items-center gap-3">
+                        <div class="bg-amberGold text-white p-3 rounded-xl shadow-xs">
+                            <i class="fa-solid fa-key text-lg"></i>
+                        </div>
+                        <div>
+                            <h3 class="text-sm font-bold text-amber-900">Desencriptación de Reclamaciones (Capa 2 AES-256):</h3>
+                            <p class="text-xs text-amber-700">Introduce la clave asignada al examen para descifrar en vivo los mensajes recibidos.</p>
+                        </div>
+                    </div>
+                    <div class="flex items-center gap-2 w-full md:w-auto">
+                        <input type="password" id="passExamenDecryptInput" oninput="updateActiveExamKey(this.value)"
+                            placeholder="Clave del examen..."
+                            class="px-4 py-2 text-sm font-bold rounded-xl border border-amber-300 focus:ring-2 focus:ring-amber-500 bg-white w-full md:w-60">
+                        <button onclick="renderClaimsList()" class="bg-amberGold hover:bg-amber-700 text-white px-4 py-2 text-xs font-bold rounded-xl shadow-xs transition-all">
+                            Aplicar
+                        </button>
+                    </div>
+                </div>
+
+                <!-- SECCIÓN DE CREACIÓN DE NUEVO EXAMEN / TEMA -->
+                <div class="bg-white rounded-2xl border border-slate-200 p-6 shadow-sm">
+                    <h3 class="text-base font-bold text-slate-800 mb-4 flex items-center gap-2">
+                        <i class="fa-solid fa-folder-plus text-blue-600"></i>
+                        <span>Crear Nuevo Examen / Tema de Evaluación</span>
+                    </h3>
+                    <form onsubmit="createNewExamTopic(event)" class="flex flex-col sm:flex-row gap-3">
+                        <input type="text" id="newExamTopicInput" required
+                            placeholder="Ej: T1 El enlace químico, T2 Termodinámica..."
+                            class="flex-1 px-4 py-2.5 text-sm rounded-xl border border-slate-300 focus:ring-2 focus:ring-blue-500">
+                        <button type="submit" 
+                            class="bg-blue-600 hover:bg-blue-700 text-white font-bold px-6 py-2.5 rounded-xl text-sm transition-all shadow-md flex items-center justify-center gap-2">
+                            <i class="fa-solid fa-plus"></i>
+                            <span>Añadir Examen</span>
+                        </button>
+                    </form>
+                </div>
+
+                <!-- METRICAS DE EXÁMENES -->
+                <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                    <div class="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm flex items-center gap-4">
+                        <div class="bg-blue-100 text-blue-700 p-3.5 rounded-xl">
+                            <i class="fa-solid fa-folder-open text-xl"></i>
+                        </div>
+                        <div>
+                            <span class="text-2xl font-black text-slate-800" id="statExamenesCount">0</span>
+                            <p class="text-xs font-medium text-slate-500">Temas / Exámenes Creados</p>
+                        </div>
+                    </div>
+
+                    <div class="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm flex items-center gap-4">
+                        <div class="bg-amber-100 text-amber-700 p-3.5 rounded-xl">
+                            <i class="fa-solid fa-shield-halved text-xl"></i>
+                        </div>
+                        <div>
+                            <span class="text-2xl font-black text-slate-800" id="statReclamacionesCount">0</span>
+                            <p class="text-xs font-medium text-slate-500">Reclamaciones Encriptadas</p>
+                        </div>
+                    </div>
+
+                    <div class="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm flex items-center gap-4">
+                        <div class="bg-emerald-100 text-emerald-700 p-3.5 rounded-xl">
+                            <i class="fa-solid fa-file-circle-check text-xl"></i>
+                        </div>
+                        <div>
+                            <span class="text-2xl font-black text-slate-800" id="statInformesCount">0</span>
+                            <p class="text-xs font-medium text-slate-500">Informes Desencriptados</p>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- BARRA DE HERRAMIENTAS Y BÚSQUEDA -->
+                <div class="flex flex-col sm:flex-row justify-between items-center gap-4 bg-white p-4 rounded-xl border border-slate-200">
+                    <div class="relative w-full sm:w-80">
+                        <i class="fa-solid fa-magnifying-glass absolute left-3.5 top-3.5 text-slate-400 text-sm"></i>
+                        <input type="text" id="searchFilterInput" oninput="renderClaimsList()"
+                            placeholder="Buscar por tema de examen..."
+                            class="w-full pl-10 pr-4 py-2 text-sm rounded-lg border border-slate-300 focus:ring-2 focus:ring-blue-500">
+                    </div>
+
+                    <div class="flex items-center gap-2 text-xs text-slate-500 w-full sm:w-auto justify-end">
+                        <button onclick="openConfigModal()" class="text-slate-600 hover:text-slate-900 font-semibold px-3 py-1.5 hover:bg-slate-100 rounded-lg transition-all flex items-center gap-1">
+                            <i class="fa-solid fa-gear"></i> Configurar Claves
+                        </button>
+                        <button onclick="fetchClaimsFromFirebase()" class="text-blue-600 hover:text-blue-800 font-semibold px-3 py-1.5 hover:bg-blue-50 rounded-lg transition-all flex items-center gap-1">
+                            <i class="fa-solid fa-rotate"></i> Actualizar
+                        </button>
+                    </div>
+                </div>
+
+                <!-- LISTADO DE EXÁMENES / TEMAS CON SUS RECLAMACIONES -->
+                <div id="examsListContainer" class="space-y-6">
+                    <!-- Se renderiza dinámicamente -->
+                </div>
+
+            </div>
+        </section>
+
+    </main>
+
+    <!-- FOOTER -->
+    <footer class="bg-slate-900 text-slate-400 text-xs py-6 border-t border-slate-800">
+        <div class="max-w-6xl mx-auto px-4 flex flex-col sm:flex-row justify-between items-center gap-3 text-center sm:text-left">
+            <div>
+                <p class="font-semibold text-slate-300">Gestor de Reclamaciones Encriptadas - Evaluador STEM</p>
+                <p class="text-[11px] text-slate-500">Seguridad Zero-Secrets | HASH SHA-256 + AES-256 en cliente</p>
+            </div>
+            <div id="dbStatusBadge" class="inline-flex items-center gap-2 bg-slate-800 px-3 py-1.5 rounded-full text-[11px] text-slate-300 border border-slate-700">
+                <span class="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
+                <span id="dbStatusText">Servidor / Memoria Lista</span>
+            </div>
+        </div>
+    </footer>
+
+    <!-- MODAL DE CONFIGURACIÓN DE CLAVES -->
+    <div id="configModal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center p-4 hidden">
+        <div class="bg-white rounded-2xl shadow-2xl max-w-lg w-full p-6 space-y-5">
+            <div class="flex justify-between items-center border-b border-slate-100 pb-3">
+                <h3 class="font-bold text-slate-800 text-lg flex items-center gap-2">
+                    <i class="fa-solid fa-sliders text-blue-600"></i>
+                    <span>Cambiar Contraseña del Panel & Ajustes</span>
+                </h3>
+                <button onclick="closeConfigModal()" class="text-slate-400 hover:text-slate-600 text-xl">
+                    <i class="fa-solid fa-xmark"></i>
+                </button>
+            </div>
+
+            <div class="space-y-4">
+                <div class="bg-slate-50 border border-slate-200 rounded-xl p-4 space-y-3">
+                    <h4 class="text-xs font-bold text-slate-700 uppercase tracking-wider">Cambiar Contraseña Maestra del Panel</h4>
+                    <div>
+                        <label class="block text-[11px] font-bold text-slate-600 mb-1">Contraseña Actual:</label>
+                        <input type="password" id="configCurrentPassword" placeholder="Contraseña actual..."
+                            class="w-full px-3 py-2 text-xs font-mono rounded-lg border border-slate-300">
+                    </div>
+                    <div>
+                        <label class="block text-[11px] font-bold text-slate-600 mb-1">Nueva Contraseña:</label>
+                        <input type="password" id="configNewPassword" placeholder="Mínimo 6 caracteres..."
+                            class="w-full px-3 py-2 text-xs font-mono rounded-lg border border-slate-300">
+                    </div>
+                    <div>
+                        <label class="block text-[11px] font-bold text-slate-600 mb-1">Confirmar Nueva Contraseña:</label>
+                        <input type="password" id="configConfirmPassword" placeholder="Repite la contraseña..."
+                            class="w-full px-3 py-2 text-xs font-mono rounded-lg border border-slate-300">
+                    </div>
+                    <button onclick="changePanelPassword()" class="w-full bg-slate-800 hover:bg-slate-900 text-white font-bold py-2 rounded-lg text-xs transition-all shadow-sm">
+                        Actualizar HASH SHA-256
+                    </button>
+                </div>
+
+                <div>
+                    <label class="block text-xs font-bold text-slate-700 mb-1">
+                        Configuración Firebase (Opcional para GitHub Pages):
+                    </label>
+                    <textarea id="configFirebaseJson" rows="3" placeholder='{"apiKey": "...", "projectId": "..."}'
+                        class="w-full px-3 py-2 text-xs font-mono rounded-lg border border-slate-300"></textarea>
+                </div>
+            </div>
+
+            <div class="flex justify-between items-center pt-2 border-t border-slate-100">
+                <button onclick="resetPanelSecurityConfig()" class="text-xs font-bold text-red-600 hover:text-red-800 hover:bg-red-50 px-3 py-1.5 rounded-lg transition-all">
+                    <i class="fa-solid fa-arrow-rotate-left mr-1"></i> Reiniciar Panel
+                </button>
+                <div class="flex gap-2">
+                    <button onclick="closeConfigModal()" class="px-4 py-2 text-xs font-bold text-slate-600 hover:bg-slate-100 rounded-lg">Cerrar</button>
+                    <button onclick="saveFirebaseConfigSettings()" class="px-4 py-2 text-xs font-bold bg-blue-600 hover:bg-blue-700 text-white rounded-lg shadow-md">Guardar Firebase</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- MODAL CONFIRMACIÓN BORRADO DE EXAMEN -->
+    <div id="confirmDeleteModal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center p-4 hidden">
+        <div class="bg-white rounded-2xl shadow-2xl max-w-sm w-full p-6 text-center space-y-4">
+            <div class="bg-red-100 text-red-600 w-12 h-12 rounded-full flex items-center justify-center mx-auto text-xl">
+                <i class="fa-solid fa-triangle-exclamation"></i>
+            </div>
+            <h3 class="font-bold text-slate-800 text-base" id="deleteModalTitle">¿Eliminar Reclamaciones?</h3>
+            <p class="text-xs text-slate-500" id="deleteModalBody">Esta acción eliminará las reclamaciones almacenadas para este examen.</p>
+            <div class="flex gap-2 pt-2">
+                <button onclick="closeDeleteModal()" class="flex-1 py-2 text-xs font-bold text-slate-600 hover:bg-slate-100 rounded-lg">Cancelar</button>
+                <button id="btnConfirmDeleteAction" class="flex-1 py-2 text-xs font-bold bg-red-600 hover:bg-red-700 text-white rounded-lg shadow-md">Sí, Eliminar</button>
+            </div>
+        </div>
+    </div>
+
+
+    <!-- INTEGRACIÓN Y LÓGICA DE FIREBASE -->
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
+        import { getAuth, signInAnonymously } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+        import { getFirestore, collection, addDoc, getDocs, deleteDoc, doc } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+
+        const appId = typeof __app_id !== 'undefined' ? __app_id : 'stem-reclamaciones-app';
+
+        let firebaseConfig = null;
+        const customFb = localStorage.getItem('stem_custom_firebase_config');
+        if (customFb) {
+            try { firebaseConfig = JSON.parse(customFb); } catch(e){}
+        }
+        if (!firebaseConfig && typeof __firebase_config !== 'undefined') {
+            try { firebaseConfig = JSON.parse(__firebase_config); } catch(e){}
+        }
+        if (!firebaseConfig) {
+            firebaseConfig = {
+                apiKey: "AIzaSyDummyKey_GitHubPagesFallback_002",
+                authDomain: "stem-reclamaciones.firebaseapp.com",
+                projectId: "stem-reclamaciones",
+                storageBucket: "stem-reclamaciones.appspot.com",
+                messagingSenderId: "987654321",
+                appId: "1:987654321:web:1234567890abcdef"
+            };
+        }
+
+        let db = null;
+        let isFirebaseActive = false;
+
+        try {
+            const app = initializeApp(firebaseConfig);
+            db = getFirestore(app);
+            const auth = getAuth(app);
+            
+            signInAnonymously(auth).then(() => {
+                isFirebaseActive = true;
+                updateDbStatusBadge(true, "Servidor Nube Conectado");
+                fetchClaimsFromFirebase();
+            }).catch(err => {
+                console.warn("Modo local activo:", err);
+                updateDbStatusBadge(false, "Modo Local (GitHub Pages)");
+                fetchClaimsFromFirebase();
+            });
+        } catch (err) {
+            console.warn("Error Firebase SDK:", err);
+            updateDbStatusBadge(false, "Modo Local");
+            fetchClaimsFromFirebase();
+        }
+
+        function getClaimsCollectionRef() {
+            return collection(db, 'artifacts', appId, 'public', 'data', 'reclamaciones_stem');
+        }
+
+        window.db = db;
+        window.getClaimsCollectionRef = getClaimsCollectionRef;
+        window.isFirebaseActive = () => isFirebaseActive;
+    </script>
+
+    <script>
+        // CONFIGURACIÓN Y CONSTANTES DE SEGURIDAD
+        const SALT_KEY = 'stem_salt_v2026_zero_secrets';
+
+        // ESTADO GLOBAL
+        let examTopics = JSON.parse(localStorage.getItem('stem_exam_topics')) || [
+            "T1 El enlace químico",
+            "T2 Termodinámica"
+        ];
+        let memoryClaims = [];
+        let activeExamDecryptKey = ''; // Clave para desencriptar AES-256 en memoria RAM
+        let isProfesorPanelUnlocked = false;
+
+        // GENERAR HASH SHA-256 CON SALT
+        function hashPassword(pwd) {
+            return CryptoJS.SHA256(pwd + SALT_KEY).toString();
+        }
+
+        function getStoredPasswordHash() {
+            return localStorage.getItem('stem_panel_password_hash');
+        }
+
+        window.addEventListener('DOMContentLoaded', () => {
+            addQuestionRow();
+            populateExamTopicSelector();
+
+            const localSaved = localStorage.getItem('stem_local_claims_encrypted_backup');
+            if (localSaved) {
+                try { memoryClaims = JSON.parse(localSaved); } catch(e){}
+            }
+
+            const customFb = localStorage.getItem('stem_custom_firebase_config');
+            if (customFb) {
+                document.getElementById('configFirebaseJson').value = customFb;
+            }
+        });
+
+        function populateExamTopicSelector() {
+            const select = document.getElementById('selectExamenTema');
+            if (!select) return;
+
+            select.innerHTML = '';
+
+            if (examTopics.length === 0) {
+                select.innerHTML = `<option value="">No hay exámenes creados por el profesor</option>`;
+                return;
+            }
+
+            examTopics.forEach(topic => {
+                const opt = document.createElement('option');
+                opt.value = topic;
+                opt.innerText = topic;
+                select.appendChild(opt);
+            });
+        }
+
+        function checkTeacherTabState() {
+            const hasHash = getStoredPasswordHash();
+            const setupCard = document.getElementById('profesorSetupCard');
+            const loginCard = document.getElementById('profesorLoginCard');
+            const dashboard = document.getElementById('profesorDashboard');
+
+            if (!hasHash) {
+                // Primer acceso: pedir crear la contraseña del panel
+                setupCard.classList.remove('hidden');
+                loginCard.classList.add('hidden');
+                dashboard.classList.add('hidden');
+            } else if (!isProfesorPanelUnlocked) {
+                // Ya existe clave configurada: pedir login
+                setupCard.classList.add('hidden');
+                loginCard.classList.remove('hidden');
+                dashboard.classList.add('hidden');
+            } else {
+                // Autenticado correctamente
+                setupCard.classList.add('hidden');
+                loginCard.classList.add('hidden');
+                dashboard.classList.remove('hidden');
+            }
+        }
+
+        function switchTab(tab) {
+            const viewAlumno = document.getElementById('viewAlumno');
+            const viewProfesor = document.getElementById('viewProfesor');
+            const tabAlumnoBtn = document.getElementById('tabAlumnoBtn');
+            const tabProfesorBtn = document.getElementById('tabProfesorBtn');
+
+            if (tab === 'alumno') {
+                viewAlumno.classList.remove('hidden');
+                viewProfesor.classList.add('hidden');
+
+                tabAlumnoBtn.className = "px-5 py-2 text-sm font-semibold rounded-lg transition-all flex items-center gap-2 bg-blue-600 text-white shadow-md";
+                tabProfesorBtn.className = "px-5 py-2 text-sm font-semibold rounded-lg transition-all flex items-center gap-2 text-blue-200 hover:text-white";
+                populateExamTopicSelector();
+            } else {
+                viewAlumno.classList.add('hidden');
+                viewProfesor.classList.remove('hidden');
+
+                tabProfesorBtn.className = "px-5 py-2 text-sm font-semibold rounded-lg transition-all flex items-center gap-2 bg-amberGold text-white shadow-md";
+                tabAlumnoBtn.className = "px-5 py-2 text-sm font-semibold rounded-lg transition-all flex items-center gap-2 text-blue-200 hover:text-white";
+
+                checkTeacherTabState();
+                if (isProfesorPanelUnlocked) {
+                    fetchClaimsFromFirebase();
+                }
+            }
+        }
+
+        function addQuestionRow(idPregunta = '', motivo = '') {
+            const container = document.getElementById('questionsContainer');
+            const rowId = 'row_' + Date.now() + '_' + Math.random().toString(36).substring(2, 6);
+
+            const rowHTML = `
+                <div id="${rowId}" class="bg-slate-50 border border-slate-200 rounded-xl p-4 transition-all hover:border-slate-300 relative space-y-3">
+                    <div class="flex items-center justify-between gap-3">
+                        <div class="w-1/3 sm:w-1/4">
+                            <label class="block text-xs font-bold text-slate-600 mb-1">N° Pregunta:</label>
+                            <input type="text" required placeholder="Ej: 2, 3b" value="${idPregunta}"
+                                class="q-id-input w-full px-3 py-2 text-sm font-bold text-blue-900 rounded-lg border border-slate-300 focus:ring-2 focus:ring-blue-500 bg-white">
+                        </div>
+                        <div class="flex-1 text-right">
+                            <button type="button" onclick="removeQuestionRow('${rowId}')" 
+                                class="text-xs text-red-500 hover:text-red-700 hover:bg-red-50 px-2 py-1.5 rounded-lg transition-all font-semibold">
+                                <i class="fa-solid fa-trash mr-1"></i> Quitar
+                            </button>
+                        </div>
+                    </div>
+
+                    <div>
+                        <label class="block text-xs font-bold text-slate-600 mb-1">Motivo / Explicación de la Reclamación:</label>
+                        <textarea required rows="2" placeholder="Explica detalladamente por qué solicitas la revisión de esta pregunta..."
+                            class="q-reason-input w-full px-3 py-2 text-sm rounded-lg border border-slate-300 focus:ring-2 focus:ring-blue-500 bg-white">${motivo}</textarea>
+                    </div>
+                </div>
+            `;
+
+            container.insertAdjacentHTML('beforeend', rowHTML);
+        }
+
+        function removeQuestionRow(rowId) {
+            const container = document.getElementById('questionsContainer');
+            if (container.children.length <= 1) {
+                showToast("Debes incluir al menos una pregunta a revisar.", "warning");
+                return;
+            }
+            const el = document.getElementById(rowId);
+            if (el) el.remove();
+        }
+
+        async function submitClaim(e) {
+            e.preventDefault();
+
+            const examenTema = document.getElementById('selectExamenTema').value.trim();
+            const idArchivoExamen = document.getElementById('idArchivoExamenInput').value.trim();
+            const claveExamen = document.getElementById('claveAccesoExamenInput').value.trim();
+
+            if (!examenTema) {
+                showToast("Por favor, selecciona el Tema de Examen correspondiente.", "warning");
+                return;
+            }
+
+            if (!claveExamen) {
+                showToast("Por favor, introduce la clave del examen.", "warning");
+                return;
+            }
+
+            const qIdInputs = document.querySelectorAll('.q-id-input');
+            const qReasonInputs = document.querySelectorAll('.q-reason-input');
+
+            const quejasList = [];
+            for (let i = 0; i < qIdInputs.length; i++) {
+                const qId = qIdInputs[i].value.trim();
+                const qReason = qReasonInputs[i].value.trim();
+                if (qId && qReason) {
+                    quejasList.push({
+                        id_pregunta: qId,
+                        motivo: qReason
+                    });
+                }
+            }
+
+            if (quejasList.length === 0) {
+                showToast("Rellena al menos una pregunta a revisar.", "warning");
+                return;
+            }
+
+            // PAYLOAD A ENCRIPTAR
+            const payloadLimpio = {
+                id_archivo_examen: idArchivoExamen,
+                quejas: quejasList,
+                fecha: new Date().toISOString()
+            };
+
+            // ENCRIPTACIÓN AES-256 CON CryptoJS UTILIZANDO LA CLAVE DEL EXAMEN
+            const ciphertext = CryptoJS.AES.encrypt(JSON.stringify(payloadLimpio), claveExamen).toString();
+
+            const recordGuardado = {
+                examen_tema: examenTema,
+                payload_encriptado: ciphertext,
+                timestamp: Date.now()
+            };
+
+            const btn = document.getElementById('btnSubmitClaim');
+            btn.disabled = true;
+            btn.innerHTML = `<i class="fa-solid fa-spinner fa-spin"></i> Encriptando y Guardando...`;
+
+            try {
+                if (window.isFirebaseActive() && window.db) {
+                    const colRef = window.getClaimsCollectionRef();
+                    await addDoc(colRef, recordGuardado);
+                }
+
+                memoryClaims.push(recordGuardado);
+                localStorage.setItem('stem_local_claims_encrypted_backup', JSON.stringify(memoryClaims));
+
+                showToast("🔒 ¡Reclamación encriptada y enviada con éxito!", "success");
+
+                document.getElementById('claimForm').reset();
+                document.getElementById('questionsContainer').innerHTML = '';
+                addQuestionRow();
+                populateExamTopicSelector();
+
+                if (isProfesorPanelUnlocked) {
+                    renderClaimsList();
+                }
+
+            } catch (err) {
+                console.error("Error guardando reclamación:", err);
+                memoryClaims.push(recordGuardado);
+                localStorage.setItem('stem_local_claims_encrypted_backup', JSON.stringify(memoryClaims));
+                showToast("Reclamación encriptada y guardada localmente.", "info");
+            } finally {
+                btn.disabled = false;
+                btn.innerHTML = `<i class="fa-solid fa-lock-combined"></i> 🔒 Enviar Reclamación Encriptada (AES-256)`;
+            }
+        }
+
+        function createNewExamTopic(e) {
+            e.preventDefault();
+            const input = document.getElementById('newExamTopicInput');
+            const newTopic = input.value.trim();
+
+            if (!newTopic) return;
+
+            if (examTopics.includes(newTopic)) {
+                showToast("Este tema de examen ya existe.", "warning");
+                return;
+            }
+
+            examTopics.push(newTopic);
+            localStorage.setItem('stem_exam_topics', JSON.stringify(examTopics));
+            input.value = '';
+
+            showToast(`✓ Creado examen: "${newTopic}"`, "success");
+            populateExamTopicSelector();
+            renderClaimsList();
+        }
+
+        // GUARDAR CONTRASEÑA INICIAL DEL PANEL (PRIMER ACCESO)
+        function saveInitialPanelPassword(e) {
+            e.preventDefault();
+            const pwd = document.getElementById('setupNewPassword').value.trim();
+            const confirmPwd = document.getElementById('setupConfirmPassword').value.trim();
+
+            if (pwd.length < 6) {
+                showToast("La contraseña debe tener al menos 6 caracteres.", "warning");
+                return;
+            }
+
+            if (pwd !== confirmPwd) {
+                showToast("Las contraseñas no coinciden.", "error");
+                return;
+            }
+
+            const hashed = hashPassword(pwd);
+            localStorage.setItem('stem_panel_password_hash', hashed);
+            isProfesorPanelUnlocked = true;
+
+            showToast("🔒 ¡Contraseña Maestra configurada! Panel desbloqueado.", "success");
+            checkTeacherTabState();
+            fetchClaimsFromFirebase();
+        }
+
+        // ACCESO AL PANEL DE PROFESOR (LOGIN CON HASH)
+        function authProfesorPanel() {
+            const pwd = document.getElementById('passProfesorPanelInput').value.trim();
+            const storedHash = getStoredPasswordHash();
+
+            if (!pwd) {
+                showToast("Por favor, introduce tu contraseña de acceso.", "warning");
+                return;
+            }
+
+            if (hashPassword(pwd) === storedHash) {
+                isProfesorPanelUnlocked = true;
+                showToast("🔓 Panel de control desbloqueado correctamente.", "success");
+                checkTeacherTabState();
+                fetchClaimsFromFirebase();
+            } else {
+                showToast("❌ Contraseña incorrecta. Acceso denegado.", "error");
+            }
+        }
+
+        function updateActiveExamKey(val) {
+            activeExamDecryptKey = val.trim();
+            renderClaimsList();
+        }
+
+        async function fetchClaimsFromFirebase() {
+            if (window.isFirebaseActive() && window.db) {
+                try {
+                    const colRef = window.getClaimsCollectionRef();
+                    const snapshot = await getDocs(colRef);
+                    const list = [];
+                    snapshot.forEach(docSnap => {
+                        const data = docSnap.data();
+                        data._firestoreId = docSnap.id;
+                        list.push(data);
+                    });
+
+                    if (list.length > 0) {
+                        memoryClaims = list;
+                        localStorage.setItem('stem_local_claims_encrypted_backup', JSON.stringify(memoryClaims));
+                    }
+                } catch (err) {
+                    console.warn("Usando respaldo de memoria local:", err);
+                }
+            }
+
+            if (isProfesorPanelUnlocked) {
+                renderClaimsList();
+            }
+        }
+
+        // DESENCRIPTAR PAYLOAD EN MEMORIA
+        function decryptPayload(ciphertext) {
+            if (!activeExamDecryptKey) return null;
+
+            try {
+                const bytes = CryptoJS.AES.decrypt(ciphertext, activeExamDecryptKey);
+                const decryptedStr = bytes.toString(CryptoJS.enc.Utf8);
+                if (!decryptedStr) return null;
+                return JSON.parse(decryptedStr);
+            } catch (e) {
+                return null;
+            }
+        }
+
+        // RENDERIZAR LISTA DE RECLAMACIONES
+        function renderClaimsList() {
+            const container = document.getElementById('examsListContainer');
+            const searchVal = (document.getElementById('searchFilterInput')?.value || '').toLowerCase().trim();
+
+            if (!container) return;
+
+            const filteredTopics = examTopics.filter(t => t.toLowerCase().includes(searchVal));
+
+            let totalClaimsCount = memoryClaims.length;
+            let totalInformesCount = 0;
+
+            document.getElementById('statExamenesCount').innerText = examTopics.length;
+            document.getElementById('statReclamacionesCount').innerText = totalClaimsCount;
+
+            if (filteredTopics.length === 0 && examTopics.length === 0) {
+                container.innerHTML = `
+                    <div class="bg-white rounded-2xl border border-slate-200 p-8 text-center text-slate-400 space-y-3">
+                        <i class="fa-solid fa-folder-plus text-4xl text-slate-300"></i>
+                        <p class="text-sm font-medium">Aún no has creado ningún tema de examen. Añade uno arriba.</p>
+                    </div>
+                `;
+                return;
+            }
+
+            let html = '';
+
+            filteredTopics.forEach(topic => {
+                const claimsForTopic = memoryClaims.filter(c => c.examen_tema === topic);
+
+                const decryptedClaims = [];
+                let lockedCount = 0;
+
+                claimsForTopic.forEach(item => {
+                    const dec = decryptPayload(item.payload_encriptado);
+                    if (dec) {
+                        decryptedClaims.push(dec);
+                    } else {
+                        lockedCount++;
+                    }
+                });
+
+                totalInformesCount += decryptedClaims.length;
+
+                html += `
+                    <div class="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
+                        <!-- Cabecera del Tema / Examen -->
+                        <div class="bg-slate-900 text-white px-6 py-4 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3">
+                            <div class="flex items-center gap-3">
+                                <span class="bg-amberGold/20 text-amberGold border border-amberGold/40 p-2 rounded-xl text-sm font-bold">
+                                    <i class="fa-solid fa-folder"></i>
+                                </span>
+                                <div>
+                                    <h4 class="font-bold text-lg text-white">${topic}</h4>
+                                    <span class="text-xs text-slate-300 font-medium">
+                                        🔒 ${claimsForTopic.length} reclamación(es) | ${decryptedClaims.length} desencriptada(s)
+                                    </span>
+                                </div>
+                            </div>
+
+                            <div class="flex flex-wrap items-center gap-2 w-full sm:w-auto justify-end">
+                                <button onclick="downloadExamJSON('${topic}')" 
+                                    class="bg-amberGold hover:bg-amber-600 text-white text-xs font-bold px-4 py-2.5 rounded-xl transition-all shadow-md flex items-center gap-2">
+                                    <i class="fa-solid fa-download"></i>
+                                    <span>Descargar Reclamaciones (.json)</span>
+                                </button>
+                                <button onclick="confirmDeleteTopicClaims('${topic}')" 
+                                    class="bg-slate-800 hover:bg-red-900/60 text-slate-300 hover:text-red-200 text-xs font-semibold px-3 py-2.5 rounded-xl border border-slate-700 transition-all">
+                                    <i class="fa-solid fa-trash-can"></i>
+                                </button>
+                            </div>
+                        </div>
+
+                        <!-- Lista de Informes Desencriptados -->
+                        <div class="p-6">
+                `;
+
+                if (claimsForTopic.length === 0) {
+                    html += `
+                        <p class="text-xs text-slate-400 italic text-center py-4">No hay reclamaciones registradas para este examen.</p>
+                    `;
+                } else {
+                    html += `<div class="space-y-4">`;
+
+                    if (lockedCount > 0) {
+                        html += `
+                            <div class="bg-amber-50 border border-amber-200 rounded-xl p-3 text-xs text-amber-800 flex items-center gap-2">
+                                <i class="fa-solid fa-lock text-amber-600"></i>
+                                <span>Hay ${lockedCount} reclamaciones cifradas. Introduce la contraseña del examen en la barra superior para descifrarlas.</span>
+                            </div>
+                        `;
+                    }
+
+                    decryptedClaims.forEach((decItem) => {
+                        const fechaStr = decItem.fecha ? new Date(decItem.fecha).toLocaleString() : 'Fecha no disponible';
+                        html += `
+                            <div class="bg-slate-50 border border-slate-200 rounded-xl p-4 space-y-3">
+                                <div class="flex justify-between items-center border-b border-slate-200 pb-2">
+                                    <span class="font-mono font-bold text-sm text-blue-900 flex items-center gap-2">
+                                        <i class="fa-solid fa-file-pdf text-red-500"></i> ${decItem.id_archivo_examen}
+                                    </span>
+                                    <span class="text-[11px] text-slate-400 font-medium">${fechaStr}</span>
+                                </div>
+
+                                <div class="space-y-2">
+                        `;
+
+                        (decItem.quejas || []).forEach(q => {
+                            html += `
+                                <div class="bg-white border-l-4 border-amberGold p-3 rounded-r-lg text-xs space-y-1 shadow-xs">
+                                    <div class="font-bold text-slate-800 flex items-center gap-1.5">
+                                        <span class="bg-amber-100 text-amber-800 px-2 py-0.5 rounded font-mono">Pregunta ${q.id_pregunta}</span>
+                                    </div>
+                                    <p class="text-slate-600 leading-relaxed font-normal">${q.motivo}</p>
+                                </div>
+                            `;
+                        });
+
+                        html += `
+                                </div>
+                            </div>
+                        `;
+                    });
+                    html += `</div>`;
+                }
+
+                html += `
+                        </div>
+                    </div>
+                `;
+            });
+
+            document.getElementById('statInformesCount').innerText = totalInformesCount;
+            container.innerHTML = html;
+        }
+
+        // FORMATO EXACTO Y DESCARGA PARA EL EVALUADOR STEM
+        function downloadExamJSON(topicName) {
+            const claimsForTopic = memoryClaims.filter(c => c.examen_tema === topicName);
+
+            if (claimsForTopic.length === 0) {
+                showToast(`No hay reclamaciones para el examen "${topicName}".`, "warning");
+                return;
+            }
+
+            const mapInformes = {};
+
+            claimsForTopic.forEach(item => {
+                const dec = decryptPayload(item.payload_encriptado);
+                if (dec && dec.id_archivo_examen) {
+                    const idArchivo = dec.id_archivo_examen.trim();
+                    if (!mapInformes[idArchivo]) {
+                        mapInformes[idArchivo] = [];
+                    }
+
+                    (dec.quejas || []).forEach(q => {
+                        mapInformes[idArchivo].push({
+                            id_pregunta: String(q.id_pregunta).trim(),
+                            motivo: q.motivo.trim()
+                        });
+                    });
+                }
+            });
+
+            const resultJSON = Object.keys(mapInformes).map(idArchivo => ({
+                id_examen: idArchivo,
+                quejas: mapInformes[idArchivo]
+            }));
+
+            if (resultJSON.length === 0) {
+                showToast("Introduce la clave del examen en la barra superior para descifrar antes de descargar.", "error");
+                return;
+            }
+
+            const nombreSanitizado = `Reclamaciones_${topicName.replace(/[^a-zA-Z0-9_\-]/g, "_")}.json`;
+            const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(resultJSON, null, 2));
+            
+            const dlAnchor = document.createElement('a');
+            dlAnchor.setAttribute("href", dataStr);
+            dlAnchor.setAttribute("download", nombreSanitizado);
+            document.body.appendChild(dlAnchor);
+            dlAnchor.click();
+            dlAnchor.remove();
+
+            showToast(`✓ Descargado ${nombreSanitizado}`, "success");
+        }
+
+        // MODAL DE BORRADO DE RECLAMACIONES DE UN TEMA
+        function confirmDeleteTopicClaims(topicName) {
+            document.getElementById('deleteModalTitle').innerText = `¿Vaciar reclamaciones de "${topicName}"?`;
+            document.getElementById('deleteModalBody').innerText = `Se eliminarán todas las reclamaciones registradas para este examen. Asegúrate de haber descargado el archivo JSON antes.`;
+            
+            const btn = document.getElementById('btnConfirmDeleteAction');
+            btn.onclick = () => executeClearTopicClaims(topicName);
+
+            document.getElementById('confirmDeleteModal').classList.remove('hidden');
+        }
+
+        function closeDeleteModal() {
+            document.getElementById('confirmDeleteModal').classList.add('hidden');
+        }
+
+        async function executeClearTopicClaims(topicName) {
+            closeDeleteModal();
+
+            if (window.isFirebaseActive() && window.db) {
+                try {
+                    const colRef = window.getClaimsCollectionRef();
+                    const snapshot = await getDocs(colRef);
+                    const deletePromises = [];
+                    snapshot.forEach(docSnap => {
+                        if (docSnap.data().examen_tema === topicName) {
+                            deletePromises.push(deleteDoc(doc(window.db, colRef.path, docSnap.id)));
+                        }
+                    });
+                    await Promise.all(deletePromises);
+                } catch(e) {
+                    console.error("Error borrando en servidor:", e);
+                }
+            }
+
+            memoryClaims = memoryClaims.filter(c => c.examen_tema !== topicName);
+            localStorage.setItem('stem_local_claims_encrypted_backup', JSON.stringify(memoryClaims));
+
+            renderClaimsList();
+            showToast(`Reclamaciones de "${topicName}" eliminadas.`, "info");
+        }
+
+        function openConfigModal() {
+            document.getElementById('configCurrentPassword').value = '';
+            document.getElementById('configNewPassword').value = '';
+            document.getElementById('configConfirmPassword').value = '';
+            document.getElementById('configModal').classList.remove('hidden');
+        }
+
+        function closeConfigModal() {
+            document.getElementById('configModal').classList.add('hidden');
+        }
+
+        // CAMBIAR CONTRASEÑA MAESTRA DESDE EL CONFIG MODAL
+        function changePanelPassword() {
+            const currentPwd = document.getElementById('configCurrentPassword').value.trim();
+            const newPwd = document.getElementById('configNewPassword').value.trim();
+            const confirmPwd = document.getElementById('configConfirmPassword').value.trim();
+
+            const storedHash = getStoredPasswordHash();
+
+            if (hashPassword(currentPwd) !== storedHash) {
+                showToast("La contraseña actual es incorrecta.", "error");
+                return;
+            }
+
+            if (newPwd.length < 6) {
+                showToast("La nueva contraseña debe tener al menos 6 caracteres.", "warning");
+                return;
+            }
+
+            if (newPwd !== confirmPwd) {
+                showToast("Las nuevas contraseñas no coinciden.", "error");
+                return;
+            }
+
+            const newHash = hashPassword(newPwd);
+            localStorage.setItem('stem_panel_password_hash', newHash);
+            showToast("✓ Contraseña Maestra actualizada con éxito.", "success");
+            closeConfigModal();
+        }
+
+        function saveFirebaseConfigSettings() {
+            const newFb = document.getElementById('configFirebaseJson').value.trim();
+            if (newFb) {
+                try {
+                    JSON.parse(newFb);
+                    localStorage.setItem('stem_custom_firebase_config', newFb);
+                    showToast("Configuración Firebase guardada.", "success");
+                } catch (e) {
+                    showToast("El JSON de Firebase no es válido.", "error");
+                    return;
+                }
+            } else {
+                localStorage.removeItem('stem_custom_firebase_config');
+            }
+            closeConfigModal();
+        }
+
+        function resetPanelSecurityConfig() {
+            if (confirm("¿Estás seguro de reiniciar la contraseña del panel? Se borrará el HASH guardado y requerirá configuración inicial en el próximo acceso.")) {
+                localStorage.removeItem('stem_panel_password_hash');
+                isProfesorPanelUnlocked = false;
+                closeConfigModal();
+                checkTeacherTabState();
+                showToast("Panel reiniciado. Configura tu nueva clave.", "info");
+            }
+        }
+
+        function updateDbStatusBadge(active, text) {
+            const badgeText = document.getElementById('dbStatusText');
+            if (badgeText) badgeText.innerText = text;
+        }
+
+        function showToast(message, type = "info") {
+            const container = document.getElementById('toastContainer');
+            if (!container) return;
+
+            const toast = document.createElement('div');
+            let bg = "bg-slate-800 text-white";
+            let icon = "fa-circle-info";
+
+            if (type === "success") {
+                bg = "bg-emerald-600 text-white";
+                icon = "fa-circle-check";
+            } else if (type === "warning") {
+                bg = "bg-amber-600 text-white";
+                icon = "fa-triangle-exclamation";
+            } else if (type === "error") {
+                bg = "bg-red-600 text-white";
+                icon = "fa-circle-xmark";
+            }
+
+            toast.className = `${bg} px-4 py-3 rounded-xl shadow-xl flex items-center justify-between gap-3 text-xs font-semibold transform transition-all duration-300 translate-y-2 opacity-0`;
+            toast.innerHTML = `
+                <div class="flex items-center gap-2">
+                    <i class="fa-solid ${icon} text-sm"></i>
+                    <span>${message}</span>
+                </div>
+                <button onclick="this.parentElement.remove()" class="text-white/80 hover:text-white ml-2">
+                    <i class="fa-solid fa-xmark"></i>
+                </button>
+            `;
+
+            container.appendChild(toast);
+
+            setTimeout(() => toast.classList.remove('translate-y-2', 'opacity-0'), 10);
+            setTimeout(() => {
+                if (toast.parentElement) {
+                    toast.classList.add('opacity-0');
+                    setTimeout(() => toast.remove(), 300);
+                }
+            }, 4000);
+        }
+
+        window.switchTab = switchTab;
+        window.addQuestionRow = addQuestionRow;
+        window.removeQuestionRow = removeQuestionRow;
+        window.submitClaim = submitClaim;
+        window.createNewExamTopic = createNewExamTopic;
+        window.saveInitialPanelPassword = saveInitialPanelPassword;
+        window.authProfesorPanel = authProfesorPanel;
+        window.updateActiveExamKey = updateActiveExamKey;
+        window.downloadExamJSON = downloadExamJSON;
+        window.confirmDeleteTopicClaims = confirmDeleteTopicClaims;
+        window.closeDeleteModal = closeDeleteModal;
+        window.executeClearTopicClaims = executeClearTopicClaims;
+        window.openConfigModal = openConfigModal;
+        window.closeConfigModal = closeConfigModal;
+        window.changePanelPassword = changePanelPassword;
+        window.saveFirebaseConfigSettings = saveFirebaseConfigSettings;
+        window.resetPanelSecurityConfig = resetPanelSecurityConfig;
+        window.fetchClaimsFromFirebase = fetchClaimsFromFirebase;
+        window.renderClaimsList = renderClaimsList;
+    </script>
+</body>
+</html>
