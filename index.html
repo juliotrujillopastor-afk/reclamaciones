@@ -404,7 +404,7 @@
                 <i class="fa-solid fa-triangle-exclamation"></i>
             </div>
             <h3 class="font-bold text-slate-800 text-base" id="deleteModalTitle">¿Eliminar Reclamaciones?</h3>
-            <p class="text-xs text-slate-500" id="deleteModalBody">Esta acción eliminará las reclamaciones almacenadas para este examen. El examen no se borrará.</p>
+            <p class="text-xs text-slate-500" id="deleteModalBody">Esta acción eliminará las reclamaciones almacenadas para este examen.</p>
             <div class="flex gap-2 pt-2">
                 <button onclick="closeDeleteModal()" class="flex-1 py-2 text-xs font-bold text-slate-600 hover:bg-slate-100 rounded-lg">Cancelar</button>
                 <button id="btnConfirmDeleteAction" class="flex-1 py-2 text-xs font-bold bg-red-600 hover:bg-red-700 text-white rounded-lg shadow-md">Sí, Eliminar</button>
@@ -883,15 +883,21 @@
 
                             <div class="flex flex-wrap items-center gap-2 w-full sm:w-auto justify-end">
                                 <button onclick="downloadExamJSON('${topic}')" 
-                                    class="bg-amberGold hover:bg-amber-600 text-white text-xs font-bold px-4 py-2.5 rounded-xl transition-all shadow-md flex items-center gap-2">
+                                    class="bg-amberGold hover:bg-amber-600 text-white text-xs font-bold px-3.5 py-2 rounded-xl transition-all shadow-md flex items-center gap-1.5">
                                     <i class="fa-solid fa-download"></i>
                                     <span>Descargar Reclamaciones (.json)</span>
                                 </button>
                                 <button onclick="confirmDeleteTopicClaims('${topic}')" 
-                                    title="Borrar todas las reclamaciones de este examen (el examen no se borrará)"
-                                    class="bg-slate-800 hover:bg-red-900/60 text-slate-300 hover:text-red-200 text-xs font-semibold px-3 py-2.5 rounded-xl border border-slate-700 transition-all flex items-center gap-1.5">
-                                    <i class="fa-solid fa-trash-can"></i>
+                                    title="Vaciar las reclamaciones recibidas para este examen"
+                                    class="bg-slate-800 hover:bg-amber-700/80 text-amber-200 hover:text-white text-xs font-semibold px-3 py-2 rounded-xl border border-slate-700 transition-all flex items-center gap-1.5">
+                                    <i class="fa-solid fa-eraser"></i>
                                     <span>Borrar Reclamaciones</span>
+                                </button>
+                                <button onclick="confirmDeleteExam('${topic}')" 
+                                    title="Eliminar este examen/tema y todas sus reclamaciones"
+                                    class="bg-red-600 hover:bg-red-700 text-white text-xs font-bold px-3 py-2 rounded-xl transition-all shadow-md flex items-center gap-1.5">
+                                    <i class="fa-solid fa-trash-can"></i>
+                                    <span>Borrar Examen</span>
                                 </button>
                             </div>
                         </div>
@@ -929,7 +935,7 @@
                                         <button onclick="confirmDeleteSingleClaim('${decItem.id_archivo_examen}', '${decItem.rawTimestamp}', '${decItem.rawFirestoreId}')" 
                                             title="Borrar únicamente esta reclamación"
                                             class="text-xs text-red-500 hover:text-red-700 hover:bg-red-50 px-2 py-1 rounded-lg transition-all font-semibold flex items-center gap-1">
-                                            <i class="fa-solid fa-trash-can"></i>
+                                            <i class="fa-solid fa-xmark"></i>
                                             <span>Borrar Reclamación</span>
                                         </button>
                                     </div>
@@ -1018,9 +1024,49 @@
             showToast(`✓ Descargado ${nombreSanitizado}`, "success");
         }
 
-        // MODAL DE BORRADO DE RECLAMACIONES DE UN TEMA
+        // MODAL Y FUNCIONES DE BORRADO DE EXÁMENES Y RECLAMACIONES
+        function confirmDeleteExam(topicName) {
+            document.getElementById('deleteModalTitle').innerText = `¿Eliminar el Examen "${topicName}"?`;
+            document.getElementById('deleteModalBody').innerText = `Se eliminará permanentemente este examen y todas las reclamaciones registradas para el mismo.`;
+            
+            const btn = document.getElementById('btnConfirmDeleteAction');
+            btn.onclick = () => executeDeleteExam(topicName);
+
+            document.getElementById('confirmDeleteModal').classList.remove('hidden');
+        }
+
+        async function executeDeleteExam(topicName) {
+            closeDeleteModal();
+
+            if (window.isFirebaseActive() && window.db) {
+                try {
+                    const colRef = window.getClaimsCollectionRef();
+                    const snapshot = await getDocs(colRef);
+                    const deletePromises = [];
+                    snapshot.forEach(docSnap => {
+                        if (docSnap.data().examen_tema === topicName) {
+                            deletePromises.push(deleteDoc(doc(window.db, colRef.path, docSnap.id)));
+                        }
+                    });
+                    await Promise.all(deletePromises);
+                } catch(e) {
+                    console.error("Error borrando en servidor:", e);
+                }
+            }
+
+            memoryClaims = memoryClaims.filter(c => c.examen_tema !== topicName);
+            localStorage.setItem('stem_local_claims_encrypted_backup', JSON.stringify(memoryClaims));
+
+            examTopics = examTopics.filter(t => t !== topicName);
+            localStorage.setItem('stem_exam_topics', JSON.stringify(examTopics));
+
+            populateExamTopicSelector();
+            renderClaimsList();
+            showToast(`Examen "${topicName}" y sus reclamaciones eliminados con éxito.`, "info");
+        }
+
         function confirmDeleteTopicClaims(topicName) {
-            document.getElementById('deleteModalTitle').innerText = `¿Borrar todas las reclamaciones de "${topicName}"?`;
+            document.getElementById('deleteModalTitle').innerText = `¿Vaciar reclamaciones de "${topicName}"?`;
             document.getElementById('deleteModalBody').innerText = `Se eliminarán todas las reclamaciones registradas para este examen. El examen no se borrará.`;
             
             const btn = document.getElementById('btnConfirmDeleteAction');
@@ -1085,7 +1131,7 @@
             localStorage.setItem('stem_local_claims_encrypted_backup', JSON.stringify(memoryClaims));
 
             renderClaimsList();
-            showToast(`Reclamaciones de "${topicName}" eliminadas.`, "info");
+            showToast(`Reclamaciones de "${topicName}" vaciadas.`, "info");
         }
 
         function openConfigModal() {
@@ -1210,6 +1256,8 @@
         window.authProfesorPanel = authProfesorPanel;
         window.updateActiveExamKey = updateActiveExamKey;
         window.downloadExamJSON = downloadExamJSON;
+        window.confirmDeleteExam = confirmDeleteExam;
+        window.executeDeleteExam = executeDeleteExam;
         window.confirmDeleteTopicClaims = confirmDeleteTopicClaims;
         window.confirmDeleteSingleClaim = confirmDeleteSingleClaim;
         window.closeDeleteModal = closeDeleteModal;
